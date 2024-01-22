@@ -35,4 +35,4 @@ jobs:
           --tag dezhao/immich_cn:1.93.3 \
           --cache-from "type=local,src=/tmp/buildxcache" \
           --cache-to "type=local,dest=/tmp/buildxcache" \
-          --file ./tools/build/docker/Dockerfile .
+          --file ./Dockerfile .
