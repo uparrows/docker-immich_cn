@@ -1,0 +1,186 @@
+---
+# project information
+project_name: immich
+project_url: "https://immich.app/"
+project_logo: "https://user-images.githubusercontent.com/27055614/182044984-2ee6d1ed-c4a7-4331-8a4b-64fcde77fe1f.png"
+project_blurb: "Immich is a high performance self-hosted photo and video backup solution."
+project_github_repo_url: "https://github.com/imagegenius/docker-{{ project_name }}"
+project_blurb_optional_extras_enabled: false
+
+# supported architectures
+available_architectures:
+  - { arch: "{{ arch_x86_64 }}", tag: "amd64-latest" }
+  - { arch: "{{ arch_arm64 }}", tag: "arm64v8-latest" }
+
+# development version
+development_versions: true
+development_versions_items:
+  - { tag: "latest", desc: "Latest Immich release with an Ubuntu base." }
+  - { tag: "noml", desc: "Latest Immich release with an Ubuntu base. Machine-learning is completely removed, making it still compatible with hardware accelaration." }
+  - { tag: "alpine", desc: "Latest Immich release with an Alpine base. Machine-learning is completely removed, making it a very lightweight image (can have issues with RAW images)." }
+
+# container parameters
+common_param_env_vars_enabled: true
+param_container_name: "{{ project_name }}"
+param_usage_include_net: false
+param_usage_include_env: true
+param_env_vars:
+  - { env_var: "DB_HOSTNAME", env_value: "192.168.1.x", desc: "PostgreSQL Host" }
+  - { env_var: "DB_USERNAME", env_value: "postgres", desc: "PostgreSQL Username" }
+  - { env_var: "DB_PASSWORD", env_value: "postgres", desc: "PostgreSQL Password" }
+  - { env_var: "DB_DATABASE_NAME", env_value: "immich", desc: "PostgreSQL Database Name" }
+  - { env_var: "REDIS_HOSTNAME", env_value: "192.168.1.x", desc: "Redis Hostname" }
+param_usage_include_vols: true
+param_volumes:
+  - { vol_path: "/config", vol_host_path: "path_to_appdata", desc: "Contains machine learning models (~1.5GB with default models)" }
+  - { vol_path: "/photos", vol_host_path: "path_to_photos", desc: "Contains all the photos uploaded to Immich" }
+param_usage_include_ports: true
+param_ports:
+  - { external_port: "8080", internal_port: "8080", port_desc: "WebUI Port" }
+param_device_map: false
+cap_add_param: false
+
+# optional container parameters
+opt_param_usage_include_env: true
+opt_param_env_vars:
+  - { env_var: "DB_PORT", env_value: "5432", desc: "PostgreSQL Port" }
+  - { env_var: "REDIS_PORT", env_value: "6379", desc: "Redis Port" }
+  - { env_var: "REDIS_PASSWORD", env_value: "", desc: "Redis password" }
+  - { env_var: "MACHINE_LEARNING_WORKERS", env_value: "1", desc: "Machine learning workers" }
+  - { env_var: "MACHINE_LEARNING_WORKER_TIMEOUT", env_value: "120", desc: "Machine learning worker timeout" }
+opt_param_usage_include_vols: true
+opt_param_volumes:
+  - { vol_path: "/import:ro", vol_host_path: "path_to_imports", desc: "This folder will be periodically scanned, contents will be automatically imported into Immich" }
+opt_param_usage_include_ports: false
+opt_param_device_map: false
+opt_cap_add_param: false
+optional_block_1: false
+
+# unraid template
+unraid_requirement: "PostgreSQL 14/15/16 with [pgvecto.rs](https://github.com/tensorchord/pgvecto.rs), Redis"
+unraid_category: "Backup: Cloud: MediaApp:Photos"
+
+# application setup block
+app_setup_block_enabled: true
+app_setup_block: |
+  The WebUI can be accessed at `http://your-ip:8080` Follow the wizard to set up Immich.
+
+  To use Immich, you need to have PostgreSQL 14/15/16 server with [pgvecto.rs](https://github.com/tensorchord/pgvecto.rs) set up externally, and Redis set up externally or within the container using a docker mod.
+
+  To set up redis using the docker mod, use the following:
+
+  Set `DOCKER_MODS=imagegenius/mods:universal-redis`, and `REDIS_HOSTNAME` to `localhost`.
+
+  To use a SSL connection to your PostgreSQL database, include a PostgreSQL URL in the `DB_URL` environment variable.
+
+  ## Hardware Acceleration
+
+  ### Intel Hardware Acceleration
+
+  To use Intel Quicksync hardware acceleration:
+
+  1. Ensure your container has access to the `/dev/dri` video device.
+  2. Add the device to your container by including the following option in your Docker run command:
+
+     ```bash
+     docker run --device=/dev/dri:/dev/dri ...
+     ```
+
+  ### Nvidia Hardware Acceleration
+
+  For Nvidia GPUs with Nvidia/CUDA hardware acceleration:
+
+  1. First, install the Nvidia container runtime on your host machine. Follow the [installation instructions here](https://github.com/NVIDIA/  nvidia-docker).
+
+  2. After installing `nvidia-docker2`, recreate or create a new Docker container using the Nvidia runtime. This can be done in two ways:
+
+     - Add both `--runtime=nvidia` and `NVIDIA_VISIBLE_DEVICES=all` to your Docker run command. Replace `all` with a specific GPU's UUID if needed. Example:
+
+       ```bash
+       docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all
+       ```
+
+     - Alternatively, use `--gpus=all` in your Docker run command. Example:
+
+       ```bash
+       docker run --gpus=all ...
+       ```
+
+  ## Import your existing libraries into Immich
+
+  - Mount your existing library folder to `/import`
+  - In your administration settings, include `/import` as the external path for your user (if you have multiple users with existing libraries set the external path to `/import/<user>`)
+  - In your account settings, add a new library and set the path to `/import` or `/import/<user>`
+
+external_application_snippet_enabled: true
+external_application_cli_block: |
+  # Redis:
+  docker run -d \
+    --name=redis \
+    -p 6379:6379 \
+    redis
+
+  # PostgreSQL 14:
+  docker run -d \
+    --name=postgres14 \
+    -e POSTGRES_USER=postgres \
+    -e POSTGRES_PASSWORD=postgres \
+    -e POSTGRES_DB=immich \
+    -v path_to_postgres:/var/lib/postgresql/data \
+    -p 5432:5432 \
+    tensorchord/pgvecto-rs:pg14-v0.1.11
+external_application_compose_block: |
+  # Redis:
+    redis:
+      image: redis
+      ports:
+        - 6379:6379
+      container_name: redis
+  # PostgreSQL 14:
+    postgres14:
+      image: tensorchord/pgvecto-rs:pg14-v0.1.11
+      ports:
+        - 5432:5432
+      container_name: postgres14
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: immich
+      volumes:
+        - path_to_postgres:/var/lib/postgresql/data
+external_application_unraid_block: |
+  You can also use a docker mods to start redis within the container,
+  Set `DOCKER_MODS=imagegenius/mods:universal-redis`, and `REDIS_HOSTNAME` to `localhost`.
+
+# changelog
+changelogs:
+  - { date: "23.12.23:", desc: "move to using seperate immich baseimage" }
+  - { date: "07.12.23:", desc: "rebase to ubuntu mantic" }
+  - { date: "07.12.23:", desc: "remove typesense (no longer needed)" }
+  - { date: "24.09.23:", desc: "house cleaning" }
+  - { date: "24.09.23:", desc: "add vars for ml workers/timeout" }
+  - { date: "29.07.23:", desc: "remove cuda acceleration for machine-learning" }
+  - { date: "23.05.23:", desc: "rebase to ubuntu lunar and support cuda acceleration for machine-learning" }
+  - { date: "22.05.23:", desc: "deprecate postgresql docker mod" }
+  - { date: "18.05.23:", desc: "add support for facial recognition" }
+  - { date: "07.05.23:", desc: "remove unused `JWT_SECRET` env" }
+  - { date: "13.04.23:", desc: "add variables to disable typesense and machine learning" }
+  - { date: "10.04.23:", desc: "fix gunicorn" }
+  - { date: "04.04.23:", desc: "use environment variables to set location of the photos folder" }
+  - { date: "09.04.23:", desc: "Cache is downloaded to the host (/config/transformers)" }
+  - { date: "01.04.23:", desc: "remove unused Immich environment variables" }
+  - { date: "21.03.23:", desc: "Add service checks" }
+  - { date: "05.03.23:", desc: "add typesense" }
+  - { date: "27.02.23:", desc: "re-enable aarch64 with pre-release torch build" }
+  - { date: "18.02.23:", desc: "use machine-learning with python" }
+  - { date: "11.02.23:", desc: "use external app block" }
+  - { date: "09.02.23:", desc: "Use Immich environment variables for immich services instead of hosts file" }
+  - { date: "09.02.23:", desc: "execute CLI with the command immich" }
+  - { date: "04.02.23:", desc: "shrink image" }
+  - { date: "26.01.23:", desc: "add unraid migration to readme" }
+  - { date: "26.01.23:", desc: "use find to apply chown to /app, excluding node_modules" }
+  - { date: "26.01.23:", desc: "enable ci testing" }
+  - { date: "24.01.23:", desc: "fix services starting prematurely, causing permission errors." }
+  - { date: "23.01.23:", desc: "add noml image to readme and add aarch64 image to readme, make github release stable" }
+  - { date: "21.01.23:", desc: "BREAKING: Redis is removed. Update missing param_env_vars & opt_param_env_vars for redis & postgres" }
+  - { date: "02.01.23:", desc: "Initial Release." }
