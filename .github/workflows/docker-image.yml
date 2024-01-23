@@ -32,7 +32,7 @@ jobs:
         docker buildx build \
           --platform linux/amd64 \
           --output "type=image,push=true" \
-          --tag dezhao/immich_cn:1.93.3 \
+          --tag dezhao/immich_cn_test:1.93.3 \
           --cache-from "type=local,src=/tmp/buildxcache" \
           --cache-to "type=local,dest=/tmp/buildxcache" \
           --file ./Dockerfile .
