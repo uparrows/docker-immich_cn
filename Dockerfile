@@ -61,7 +61,7 @@ RUN \
   fi && \
   curl -o \
     /tmp/immich.tar.gz -L \
-    "https://github.com/uparrows/immich_cn/archive/refs/tags/1.93.3_1.tar.gz" && \
+    "https://github.com/uparrows/immich_cn/archive/refs/tags/1.93.3_2.tar.gz" && \
   tar xf \
     /tmp/immich.tar.gz -C \
     /tmp/immich --strip-components=1 && \
